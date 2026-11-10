@@ -1,0 +1,2099 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: MARJEA Phase 1 API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: system
+    description: Public service capability status
+  - name: institutions
+    description: Authenticated institution and tenant operations
+  - name: references
+    description: Official reference records and versions
+  - name: monitoring
+    description: Approved source definitions and manually submitted observations
+  - name: cases
+    description: Human-managed case and review foundation
+  - name: individual
+    description: Individual account, content reports and protection profile
+paths:
+  /v1/account/registration:
+    get:
+      operationId: getAccountRegistrationStatus
+      tags: [individual]
+      summary: Get the signed-in user's registration and institution association status
+      responses:
+        "200":
+          description: Registration state for this signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountRegistration"
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified email required
+        "503":
+          description: Identity or registration service unavailable
+    post:
+      operationId: completeAccountRegistration
+      tags: [individual]
+      summary: Register an individual or institution account after phone verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountRegistrationInput"
+      responses:
+        "201":
+          description: Account registration stored after verified email and phone checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountRegistration"
+        "400":
+          description: Invalid account details or phone verification
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified email or eligible email domain required
+        "409":
+          description: Account type or phone number conflicts with an existing registration
+        "503":
+          description: Phone identity service unavailable
+  /v1/account/registration/phone-proof:
+    get:
+      operationId: getRegistrationPhoneProof
+      tags: [individual]
+      summary: Read a recent, server-verified registration phone proof from a secure browser cookie
+      responses:
+        "200":
+          description: Phone proof status; an absent or expired proof is reported as not verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationPhoneProof"
+        "401":
+          description: Authentication required
+        "503":
+          description: Identity service unavailable
+    post:
+      operationId: issueRegistrationPhoneProof
+      tags: [individual]
+      summary: Verify a recent Firebase phone token and store a short-lived HttpOnly proof for Google signup continuation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationPhoneProofInput"
+      responses:
+        "200":
+          description: Phone proof verified and stored in a short-lived HttpOnly cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationPhoneProof"
+        "400":
+          description: Invalid, stale, or mismatched Firebase phone proof
+        "403":
+          description: First-party origin required
+        "429":
+          description: Phone-proof requests are temporarily rate limited
+        "503":
+          description: Phone identity service unavailable
+  /v1/account/registration/email-eligibility:
+    get:
+      operationId: checkRegistrationEmailEligibility
+      tags: [individual]
+      summary: Check the signed-in user's verified email before sending a phone code
+      parameters:
+        - name: accountType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [individual, institution]
+      responses:
+        "200":
+          description: Email domain eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailEligibility"
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified email required
+        "429":
+          description: Eligibility checks are temporarily rate limited
+        "503":
+          description: Email or identity verification service unavailable
+  /v1/auth/phone-session:
+    post:
+      operationId: createPhoneAuthSession
+      tags: [individual]
+      summary: Start an application session after Firebase SMS verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhoneAuthSessionInput"
+      responses:
+        "200":
+          description: Phone-verified account session established
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhoneAuthSession"
+        "400":
+          description: Invalid or stale phone verification
+        "401":
+          description: No matching eligible account
+        "429":
+          description: Phone sign-in is temporarily rate limited
+        "503":
+          description: Phone identity service unavailable
+    delete:
+      operationId: revokePhoneAuthSession
+      tags: [individual]
+      summary: Revoke the current phone-authenticated session
+      responses:
+        "204":
+          description: Session revoked and cookie cleared
+  /v1/auth/session:
+    get:
+      operationId: getPhoneAuthSession
+      tags: [individual]
+      summary: Get the current Firebase phone-authenticated account
+      responses:
+        "200":
+          description: Current phone-authenticated account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhoneAuthSession"
+        "401":
+          description: No active phone-authenticated session
+        "503":
+          description: Session data is unavailable
+  /v1/account/registration/license-document/upload-url:
+    post:
+      operationId: requestInstitutionLicenseUpload
+      tags: [individual]
+      summary: Create a short-lived private upload URL for an institution permit PDF or image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionLicenseUploadInput"
+      responses:
+        "201":
+          description: Private upload URL created for the signed-in institution applicant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionLicenseUpload"
+        "400":
+          description: Invalid permit file metadata or institution account state
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified institution account required
+        "429":
+          description: Upload requests are temporarily rate limited
+        "503":
+          description: Storage service unavailable
+  /v1/account/registration/license-document/complete:
+    post:
+      operationId: completeInstitutionLicenseUpload
+      tags: [individual]
+      summary: Verify and record an uploaded institution permit PDF or image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionLicenseUploadCompleteInput"
+      responses:
+        "200":
+          description: PDF verified and recorded as a private institution document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionLicenseUploadComplete"
+        "400":
+          description: Uploaded object does not match the pending PDF request
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified institution account required
+        "404":
+          description: Pending upload was not found
+        "503":
+          description: Storage service unavailable
+  /v1/platform/institutions/{institutionId}/license-document:
+    get:
+      operationId: downloadInstitutionLicenseDocument
+      tags: [institutions]
+      summary: Redirect an authorized platform reviewer to a short-lived private PDF URL
+      parameters:
+        - name: institutionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "302":
+          description: Redirect to a short-lived signed PDF URL
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+                format: uri
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+        "404":
+          description: Institution application or PDF not found
+        "503":
+          description: Review data or storage service unavailable
+  /v1/individual/reports:
+    get:
+      operationId: listIndividualReports
+      tags: [individual]
+      summary: List the signed-in individual's content reports
+      responses:
+        "200":
+          description: Reports created by the signed-in individual
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IndividualReport"
+        "401":
+          description: Authentication required
+        "403":
+          description: Active individual account required
+    post:
+      operationId: createIndividualReport
+      tags: [individual]
+      summary: Submit a content link for human review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndividualReportInput"
+      responses:
+        "201":
+          description: Report queued for human review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndividualReport"
+        "400":
+          description: Invalid URL or report details
+        "401":
+          description: Authentication required
+        "403":
+          description: Active individual account required
+        "429":
+          description: Report submissions are temporarily rate limited
+  /v1/platform/individual-reports:
+    get:
+      operationId: listPlatformIndividualReports
+      tags: [individual]
+      summary: List individual content reports for authorized human reviewers
+      responses:
+        "200":
+          description: Reports awaiting or undergoing human review
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IndividualReport"
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+  /v1/platform/individual-reports/{reportId}:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: reviewIndividualReport
+      tags: [individual]
+      summary: Record a human review decision for an individual report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndividualReportReviewInput"
+      responses:
+        "200":
+          description: Review decision and audit record saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndividualReport"
+        "400":
+          description: Invalid review transition
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+        "404":
+          description: Report not found
+        "409":
+          description: Report has already received a final decision
+  /v1/individual/protection-profile:
+    get:
+      operationId: getIndividualProtectionProfile
+      tags: [individual]
+      responses:
+        "200":
+          description: The signed-in user's protection profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndividualProtectionProfile"
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified email required
+        "404":
+          description: No profile has been created
+        "503":
+          description: Identity or profile service unavailable
+    put:
+      operationId: saveIndividualProtectionProfile
+      tags: [individual]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndividualProtectionProfileInput"
+      responses:
+        "200":
+          description: Existing pending profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndividualProtectionProfile"
+        "201":
+          description: Pending profile created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndividualProtectionProfile"
+        "400":
+          description: Invalid input or unsupported fields
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified email required
+        "503":
+          description: Identity or profile service unavailable
+  # Institution-authenticated integration; demo prepare/reset remain unmounted.
+  /v1/institutions/{institutionId}/workspace-records:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/Records"
+  /v1/institutions/{institutionId}/workspace-references:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/References"
+  /v1/institutions/{institutionId}/workspace-references/{referenceId}:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/Reference"
+  /v1/institutions/{institutionId}/workspace-posts:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/Posts"
+  /v1/institutions/{institutionId}/workspace-posts/{postId}:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/Post"
+  /v1/institutions/{institutionId}/semantic-activation:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/Activation"
+  /v1/institutions/{institutionId}/telegram/link:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/TelegramLink"
+  /v1/institutions/{institutionId}/telegram/reports:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/TelegramReports"
+  /v1/institutions/{institutionId}/telegram/reports/{reportId}:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/TelegramReport"
+  /v1/telegram/webhook:
+    $ref: "./workspace.openapi.yaml#/components/pathItems/TelegramWebhook"
+  /v1/institutions/{institutionId}/semantic-capabilities:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/Capabilities"
+  /v1/institutions/{institutionId}/semantic-attempt-history:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/SemanticAttemptHistory"
+  /v1/institutions/{institutionId}/reference-observations:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/ReferenceObservations"
+  /v1/institutions/{institutionId}/semantic-analyses:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/Analyses"
+  /v1/institutions/{institutionId}/semantic-analyses/{analysisId}:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AnalysisDetail"
+  /v1/institutions/{institutionId}/semantic-analyses/{analysisId}/retry:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AnalysisRetry"
+  /v1/institutions/{institutionId}/semantic-analyses/{analysisId}/review-steps:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AnalysisReview"
+  /v1/institutions/{institutionId}/semantic-analyses/{analysisId}/review-steps/{stepId}/decisions:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AnalysisDecision"
+  /v1/institutions/{institutionId}/semantic-analyses/{analysisId}/resubmit:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AnalysisResubmit"
+  /v1/institutions/{institutionId}/first-observed-deviations:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/Deviations"
+  /v1/institutions/{institutionId}/first-observed-deviations/{candidateId}/confirm:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/DeviationConfirm"
+  /v1/institutions/{institutionId}/first-observed-deviations/{candidateId}/reject:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/DeviationReject"
+  /v1/institutions/{institutionId}/claim-workspace:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/ClaimWorkspace"
+  /v1/institutions/{institutionId}/audit-events:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/AuditEvents"
+  /v1/institutions/{institutionId}/analytics:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/InstitutionAnalytics"
+  /v1/institutions/{institutionId}/claim-topics:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/CreateClaimTopic"
+  /v1/institutions/{institutionId}/claims:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/CreateClaim"
+  /v1/institutions/{institutionId}/claims/{claimId}/variants:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/CreateClaimVariant"
+  /v1/institutions/{institutionId}/claim-observations:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/LinkClaimObservation"
+  /v1/institutions/{institutionId}/claim-lineage:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/CreateClaimLineage"
+  /v1/institutions/{institutionId}/claim-evidence:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/CreateClaimEvidence"
+  /v1/institutions/{institutionId}/demo-scenarios/ofuq-v1/prepare:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/DemoPrepare"
+  /v1/institutions/{institutionId}/demo-scenarios/ofuq-v1/reset:
+    $ref: "./phase2a.openapi.yaml#/components/pathItems/DemoReset"
+  /v1/plans:
+    get:
+      operationId: listPlans
+      tags: [institutions]
+      responses:
+        "200":
+          description: Central plan catalog; entitlements are distinct from currently available features
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanDefinition"
+  /v1/institution-onboarding:
+    post:
+      operationId: onboardInstitution
+      tags: [institutions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionOnboardingInput"
+      responses:
+        "201":
+          description: Institution application recorded without granting membership or workspace access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionApplicationReceipt"
+        "400":
+          description: Invalid input
+        "401":
+          description: Authentication required
+        "409":
+          description: Request identifier already used with different input
+        "429":
+          description: Institution applications are temporarily rate limited
+  /v1/platform/institutions/review-queue:
+    get:
+      operationId: listInstitutionReviewQueue
+      tags: [institutions]
+      summary: List pending institution reviews for authorized platform reviewers
+      responses:
+        "200":
+          description: Pending institutions only; institution contact details are excluded
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstitutionVerificationQueueItem"
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+        "503":
+          description: Review data is unavailable
+  /v1/platform/institutions/association-queue:
+    get:
+      operationId: listInstitutionAssociationQueue
+      tags: [institutions]
+      summary: List institution account-link requests for authorized platform reviewers
+      responses:
+        "200":
+          description: Pending institution association applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstitutionAssociationQueueItem"
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+  /v1/platform/institutions/{institutionId}/association-review:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    post:
+      operationId: reviewInstitutionAssociation
+      tags: [institutions]
+      summary: Approve or reject an institution account-link request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionAssociationReviewInput"
+      responses:
+        "200":
+          description: Association decision and audit record saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionAssociationDecision"
+        "400":
+          description: Invalid decision
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+        "404":
+          description: Institution application not found
+        "409":
+          description: Institution application is no longer pending
+        "503":
+          description: Review data is unavailable
+  /v1/institutions/{institutionId}/legal-verification/approve:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    post:
+      operationId: approveInstitutionLegalVerification
+      tags: [institutions]
+      summary: Approve legal verification as an authorized platform reviewer
+      responses:
+        "200":
+          description: Approval and audit record committed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionVerificationDecision"
+        "401":
+          description: Authentication required
+        "403":
+          description: Platform reviewer permission required
+        "404":
+          description: Institution not found
+        "409":
+          description: Institution is no longer pending
+        "503":
+          description: Review data is unavailable
+  /v1/institutions/{institutionId}:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: getInstitutionDetails
+      tags: [institutions]
+      responses:
+        "200":
+          description: Membership-protected institution and subscription details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionDetails"
+        "403":
+          description: Membership required
+  /v1/institutions/{institutionId}/settings:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    patch:
+      operationId: updateInstitutionSettings
+      tags: [institutions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionSettingsInput"
+      responses:
+        "200":
+          description: Updated institution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionDetails"
+        "403":
+          description: Institution administrator required
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/public/status:
+    get:
+      operationId: getPublicStatus
+      tags: [system]
+      summary: Get Phase 1 capability status
+      responses:
+        "200":
+          description: Current adapter and governance capabilities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStatus"
+  /v1/institutions:
+    get:
+      operationId: listInstitutions
+      tags: [institutions]
+      summary: List institutions available to the signed-in user
+      responses:
+        "200":
+          description: Institution memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstitutionMembership"
+        "401":
+          description: Authentication required
+    post:
+      operationId: createInstitution
+      tags: [institutions]
+      summary: Deprecated direct institution creation; new accounts must use verified onboarding
+      responses:
+        "403":
+          description: Verified institution onboarding is required
+        "400":
+          description: Invalid input
+        "401":
+          description: Authentication required
+  /v1/institutions/{institutionId}/members:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listInstitutionMembers
+      tags: [institutions]
+      responses:
+        "200":
+          description: Institution team
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+        "403":
+          description: Membership required
+  /v1/institutions/{institutionId}/member-invitations:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listInstitutionMemberInvitations
+      tags: [institutions]
+      responses:
+        "200":
+          description: Pending and completed invitations for the institution
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstitutionMemberInvitation"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution administrator role required
+    post:
+      operationId: createInstitutionMemberInvitation
+      tags: [institutions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstitutionMemberInvitationInput"
+      responses:
+        "201":
+          description: Invitation created and emailed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionMemberInvitation"
+        "400":
+          description: Invalid email or role
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution administrator role required
+        "409":
+          description: Email already belongs to a member or has an open invitation
+        "503":
+          description: Invitation email could not be sent
+  /v1/institutions/{institutionId}/member-invitations/{invitationId}:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - name: invitationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: revokeInstitutionMemberInvitation
+      tags: [institutions]
+      responses:
+        "200":
+          description: Invitation revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionMemberInvitation"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution administrator role required
+        "404":
+          description: Invitation not found
+        "409":
+          description: Invitation is no longer pending
+  /v1/institutions/{institutionId}/member-invitations/{invitationId}/resend:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - name: invitationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: resendInstitutionMemberInvitation
+      tags: [institutions]
+      responses:
+        "200":
+          description: Invitation sent with a renewed secure link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionMemberInvitation"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution administrator role required
+        "404":
+          description: Invitation not found
+        "409":
+          description: Invitation has expired or is no longer pending
+        "503":
+          description: Invitation email could not be sent
+  /v1/member-invitations/accept:
+    post:
+      operationId: acceptInstitutionMemberInvitation
+      tags: [institutions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInstitutionMemberInvitationInput"
+      responses:
+        "200":
+          description: Invitation accepted and membership activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedInstitutionMemberInvitation"
+        "400":
+          description: Invalid or expired invitation
+        "401":
+          description: Authentication required
+        "403":
+          description: Verified invitation email does not match the signed-in account
+        "409":
+          description: Account already has an active membership
+        "503":
+          description: Identity verification is unavailable
+        "404":
+          description: Institution not found
+  /v1/institutions/{institutionId}/official-references:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listOfficialReferences
+      tags: [references]
+      summary: List official reference records for an institution
+      responses:
+        "200":
+          description: Reference records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OfficialReference"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution membership required
+        "404":
+          description: Institution not found
+    post:
+      operationId: createOfficialReference
+      tags: [references]
+      summary: Record a reference and its first version
+      description: >
+        Phase 1 records institution-supplied reference details. It does not
+        independently verify the issuing authority or fetch remote content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfficialReferenceInput"
+      responses:
+        "201":
+          description: Reference and version recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfficialReference"
+        "400":
+          description: Invalid input
+        "401":
+          description: Authentication required
+        "403":
+          description: Reference manager role required
+        "404":
+          description: Institution not found
+  /v1/institutions/{institutionId}/monitor-sources:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listMonitorSources
+      tags: [monitoring]
+      summary: List institution source records
+      responses:
+        "200":
+          description: Sources, including their capture mode
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonitorSource"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution membership required
+        "404":
+          description: Institution not found
+    post:
+      operationId: createMonitorSource
+      tags: [monitoring]
+      summary: Register a source for manual submission
+      description: Does not activate or imply automated monitoring.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MonitorSourceInput"
+      responses:
+        "201":
+          description: Manual submission source created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonitorSource"
+        "400":
+          description: Invalid input
+        "401":
+          description: Authentication required
+        "403":
+          description: Analyst or institution administrator role required
+        "404":
+          description: Institution not found
+  /v1/institutions/{institutionId}/observed-content:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listObservedContent
+      tags: [monitoring]
+      summary: List manually submitted content observations
+      responses:
+        "200":
+          description: Tenant-scoped observations with provenance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ObservedContent"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution membership required
+        "404":
+          description: Institution not found
+    post:
+      operationId: createObservedContent
+      tags: [monitoring]
+      summary: Record a manually submitted content observation
+      description: >
+        Phase 1 accepts only manual submissions. The server sets isSimulated;
+        clients cannot label submitted content as live monitoring.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ObservedContentInput"
+      responses:
+        "201":
+          description: Observation recorded as a manual submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObservedContent"
+        "400":
+          description: Invalid input or source is not available for manual capture
+        "401":
+          description: Authentication required
+        "403":
+          description: Analyst or institution administrator role required
+        "404":
+          description: Institution or source not found
+  /v1/institutions/{institutionId}/cases:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+    get:
+      operationId: listCases
+      tags: [cases]
+      summary: List institution cases
+      responses:
+        "200":
+          description: Cases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Case"
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution membership required
+        "404":
+          description: Institution not found
+    post:
+      operationId: createCase
+      tags: [cases]
+      summary: Open a manually initiated case
+      description: Does not represent an automated drift detection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseInput"
+      responses:
+        "201":
+          description: Case created in the new state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "400":
+          description: Invalid input or evidence belongs to another institution
+        "401":
+          description: Authentication required
+        "403":
+          description: Analyst or institution administrator role required
+        "404":
+          description: Institution not found
+  /v1/institutions/{institutionId}/cases/{caseId}:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - $ref: "#/components/parameters/CaseId"
+    get:
+      operationId: getCaseDetails
+      tags: [cases]
+      summary: Get a tenant-scoped case and its linked records
+      description: Requires a verified Clerk session and active institution membership. Linked source, reference, analysis, and evidence records are read only from the same institution.
+      responses:
+        "200":
+          description: Case details and its currently linked records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseDetails"
+        "401":
+          description: Authentication required
+        "403":
+          description: Active institution membership required
+        "404":
+          description: Case not found in this institution
+  /v1/institutions/{institutionId}/cases/{caseId}/response-drafts:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - $ref: "#/components/parameters/CaseId"
+    post:
+      operationId: createResponseDraft
+      tags: [cases]
+      summary: Save a human-authored response draft
+      description: Phase 1 does not generate AI response drafts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponseDraftInput"
+      responses:
+        "201":
+          description: Draft created and case placed in review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseDraft"
+        "400":
+          description: Invalid input or case is not eligible for a draft
+        "401":
+          description: Authentication required
+        "403":
+          description: Analyst or institution administrator role required
+        "404":
+          description: Institution or case not found
+  /v1/institutions/{institutionId}/cases/{caseId}/review-steps:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - $ref: "#/components/parameters/CaseId"
+    post:
+      operationId: createReviewStep
+      tags: [cases]
+      summary: Add an ordered human review step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewStepInput"
+      responses:
+        "201":
+          description: Review step created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewStep"
+        "400":
+          description: Invalid reviewer, sequence, or case state
+        "401":
+          description: Authentication required
+        "403":
+          description: Institution administrator role required
+        "404":
+          description: Institution, case, or reviewer membership not found
+  /v1/institutions/{institutionId}/cases/{caseId}/review-steps/{stepId}/decisions:
+    parameters:
+      - $ref: "#/components/parameters/InstitutionId"
+      - $ref: "#/components/parameters/CaseId"
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: submitReviewDecision
+      tags: [cases]
+      summary: Submit a decision for the currently assigned human review step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDecisionInput"
+      responses:
+        "200":
+          description: Review decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewStep"
+        "400":
+          description: Invalid decision
+        "401":
+          description: Authentication required
+        "403":
+          description: Assigned reviewer role required
+        "404":
+          description: Institution, case, or review step not found
+        "409":
+          description: Review step is out of order or already decided
+components:
+  parameters:
+    InstitutionId:
+      name: institutionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    PlanKey:
+      type: string
+      enum: [explore, institutional, partnership]
+    InstitutionType:
+      type: string
+      enum: [government, semi_government, enterprise, other]
+    PlanCapabilities:
+      type: object
+      additionalProperties: false
+      required: [canManageOfficialReferences, canManageCases, canUseReviewWorkflow, canUseSemanticAnalysis, canUseApi, canUseWidget, canUseEnterpriseIntegrations]
+      properties:
+        canManageOfficialReferences: { type: boolean }
+        canManageCases: { type: boolean }
+        canUseReviewWorkflow: { type: boolean }
+        canUseSemanticAnalysis: { type: boolean }
+        canUseApi: { type: boolean }
+        canUseWidget: { type: boolean }
+        canUseEnterpriseIntegrations: { type: boolean }
+    PlanDefinition:
+      type: object
+      required: [key, arabicName, englishName, legacyArabicName, legacyEnglishName, description, capabilities, availableCapabilities, commercial, ctaText, ctaTextEnglish, isAvailable]
+      properties:
+        key: { $ref: "#/components/schemas/PlanKey" }
+        arabicName: { type: string }
+        englishName: { type: string }
+        legacyArabicName: { type: string }
+        legacyEnglishName: { type: string }
+        description: { type: string }
+        capabilities: { $ref: "#/components/schemas/PlanCapabilities" }
+        availableCapabilities: { $ref: "#/components/schemas/PlanCapabilities" }
+        commercial:
+          type: object
+          required: [price, limits, features]
+          properties:
+            price:
+              type: object
+              required: [amount, currency, interval, status]
+              properties:
+                amount: { type: ["integer", "null"], minimum: 0 }
+                currency: { type: string, enum: [SAR] }
+                interval: { type: string, enum: [month, contract] }
+                status: { type: string, enum: [proposed, custom_quote] }
+            limits:
+              type: object
+              required: [members, references, observations, configurable, enforced]
+              properties:
+                members: { type: ["integer", "null"], minimum: 1 }
+                references: { type: ["integer", "null"], minimum: 1 }
+                observations: { type: ["integer", "null"], minimum: 1 }
+                configurable: { type: boolean }
+                enforced: { type: boolean, enum: [false] }
+            features:
+              type: object
+              required: [claimsAnalysis, evidence, humanReview, lineage, firstObserved, analytics, integrations]
+              properties:
+                claimsAnalysis: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                evidence: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                humanReview: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                lineage: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                firstObserved: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                analytics: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+                integrations: { $ref: "#/components/schemas/PlanFeatureEntitlement" }
+        ctaText: { type: string }
+        ctaTextEnglish: { type: string }
+        isAvailable: { type: boolean }
+    PlanFeatureEntitlement:
+      type: object
+      required: [included, implementationState, planEnforced]
+      properties:
+        included: { type: boolean }
+        implementationState: { type: string, enum: [implemented, partial, planned] }
+        planEnforced: { type: boolean, enum: [false] }
+    InstitutionSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [name, institutionType, contactName, contactEmail, phone]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        institutionType: { $ref: "#/components/schemas/InstitutionType" }
+        contactName: { type: string, minLength: 2, maxLength: 160 }
+        contactEmail: { type: string, format: email, maxLength: 254 }
+        phone: { type: ["string", "null"], maxLength: 40 }
+    AccountRegistrationInput:
+      type: object
+      additionalProperties: false
+      required: [accountType, fullName, phoneNumber]
+      properties:
+        accountType: { type: string, enum: [individual, institution] }
+        fullName: { type: string, minLength: 2, maxLength: 160, description: Must contain at least two words }
+        phoneNumber: { type: string, minLength: 8, maxLength: 24 }
+        firebaseIdToken: { type: string, minLength: 20, maxLength: 8192 }
+        institutionName: { type: [string, "null"], minLength: 2, maxLength: 160 }
+    RegistrationPhoneProofInput:
+      type: object
+      additionalProperties: false
+      required: [phoneNumber, firebaseIdToken]
+      properties:
+        phoneNumber: { type: string, minLength: 8, maxLength: 24 }
+        firebaseIdToken: { type: string, minLength: 20, maxLength: 8192 }
+    RegistrationPhoneProof:
+      type: object
+      additionalProperties: false
+      required: [verified, phoneNumber, verifiedAt, expiresAt]
+      properties:
+        verified: { type: boolean }
+        phoneNumber: { type: ["string", "null"] }
+        verifiedAt: { type: ["string", "null"], format: date-time }
+        expiresAt: { type: ["string", "null"], format: date-time }
+    AccountRegistration:
+      type: object
+      additionalProperties: false
+      required: [accountType, fullName, emailAddress, status, phoneNumber, phoneVerifiedAt, institutionId, institutionName, associationStatus, applicationSubmittedAt, organizationName, licenseDocumentName, licenseDocumentUploadedAt]
+      properties:
+        accountType: { type: ["string", "null"], enum: [individual, institution, null] }
+        fullName: { type: ["string", "null"] }
+        emailAddress: { type: ["string", "null"], format: email }
+        status: { type: string, enum: [NOT_REGISTERED, ACTIVE, PENDING_INSTITUTION_APPROVAL, REJECTED] }
+        phoneNumber: { type: ["string", "null"] }
+        phoneVerifiedAt: { type: ["string", "null"], format: date-time }
+        institutionId: { type: ["string", "null"], format: uuid }
+        institutionName: { type: ["string", "null"] }
+        associationStatus: { type: ["string", "null"], enum: [PENDING, APPROVED, REJECTED, null] }
+        applicationSubmittedAt: { type: ["string", "null"], format: date-time }
+        organizationName: { type: ["string", "null"] }
+        licenseDocumentName: { type: ["string", "null"] }
+        licenseDocumentUploadedAt: { type: ["string", "null"], format: date-time }
+    PhoneAuthSessionInput:
+      type: object
+      additionalProperties: false
+      required: [phoneNumber, firebaseIdToken]
+      properties:
+        phoneNumber: { type: string, minLength: 8, maxLength: 24 }
+        firebaseIdToken: { type: string, minLength: 20, maxLength: 8192 }
+    PhoneAuthSession:
+      type: object
+      additionalProperties: false
+      required: [authenticated, userId, fullName, emailAddress, accountType, status, phoneNumber]
+      properties:
+        authenticated: { type: boolean, enum: [true] }
+        userId: { type: string, minLength: 1, maxLength: 255 }
+        fullName: { type: string }
+        emailAddress: { type: string, format: email }
+        accountType: { type: string, enum: [individual, institution] }
+        status: { type: string, enum: [ACTIVE, PENDING_INSTITUTION_APPROVAL, REJECTED] }
+        phoneNumber: { type: string }
+    InstitutionLicenseUploadInput:
+      type: object
+      additionalProperties: false
+      required: [fileName, fileSize, contentType]
+      properties:
+        fileName: { type: string, minLength: 1, maxLength: 255 }
+        fileSize: { type: integer, minimum: 1, maximum: 10485760 }
+        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png, image/webp] }
+    InstitutionLicenseUpload:
+      type: object
+      additionalProperties: false
+      required: [documentId, uploadUrl, expiresAt]
+      properties:
+        documentId: { type: string, format: uuid }
+        uploadUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+    InstitutionLicenseUploadCompleteInput:
+      type: object
+      additionalProperties: false
+      required: [documentId]
+      properties:
+        documentId: { type: string, format: uuid }
+    InstitutionLicenseUploadComplete:
+      type: object
+      additionalProperties: false
+      required: [fileName, fileSize, uploadedAt]
+      properties:
+        fileName: { type: string }
+        fileSize: { type: integer }
+        uploadedAt: { type: string, format: date-time }
+    EmailEligibility:
+      type: object
+      additionalProperties: false
+      required: [accountType, eligible, reason]
+      properties:
+        accountType: { type: string, enum: [individual, institution] }
+        eligible: { type: boolean }
+        reason:
+          type: string
+          enum: [eligible, invalid, disposable, blocked, personal_domain, unverified_institution_domain, no_mail_domain]
+    InstitutionOnboardingInput:
+      type: object
+      additionalProperties: false
+      required: [name, institutionType, selectedPlan, requestKey]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        institutionType: { $ref: "#/components/schemas/InstitutionType" }
+        selectedPlan: { $ref: "#/components/schemas/PlanKey" }
+        requestKey: { type: string, format: uuid }
+    InstitutionApplicationReceipt:
+      type: object
+      additionalProperties: false
+      required: [applicationId, institutionId, institutionName, associationStatus, selectedPlan, submittedAt]
+      properties:
+        applicationId: { type: string, format: uuid }
+        institutionId: { type: string, format: uuid }
+        institutionName: { type: string }
+        associationStatus: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        selectedPlan: { $ref: "#/components/schemas/PlanKey" }
+        submittedAt: { type: string, format: date-time }
+    InstitutionAssociationQueueItem:
+      type: object
+      additionalProperties: false
+      required: [applicationId, institutionId, institutionName, applicantName, officialEmail, phoneNumber, selectedPlan, submittedAt, associationStatus, licenseDocumentAvailable, licenseDocumentName]
+      properties:
+        applicationId: { type: string, format: uuid }
+        institutionId: { type: string, format: uuid }
+        institutionName: { type: string }
+        applicantName: { type: string }
+        officialEmail: { type: string, format: email }
+        phoneNumber: { type: string }
+        selectedPlan: { $ref: "#/components/schemas/PlanKey" }
+        submittedAt: { type: string, format: date-time }
+        associationStatus: { type: string, enum: [PENDING] }
+        licenseDocumentAvailable: { type: boolean }
+        licenseDocumentName: { type: ["string", "null"] }
+    InstitutionAssociationReviewInput:
+      type: object
+      additionalProperties: false
+      required: [decision, note]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        note: { type: ["string", "null"], maxLength: 2000 }
+    InstitutionAssociationDecision:
+      type: object
+      additionalProperties: false
+      required: [institutionId, status, reviewedAt]
+      properties:
+        institutionId: { type: string, format: uuid }
+        status: { type: string, enum: [APPROVED, REJECTED] }
+        reviewedAt: { type: string, format: date-time }
+    InstitutionSubscription:
+      type: object
+      required: [id, institutionId, planKey, subscriptionStatus, requestedBy, startedAt, expiresAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        institutionId: { type: string, format: uuid }
+        planKey: { $ref: "#/components/schemas/PlanKey" }
+        subscriptionStatus:
+          type: string
+          enum: [requested, pilot, pending_contract, active, suspended, cancelled]
+        requestedBy: { type: string }
+        startedAt: { type: ["string", "null"], format: date-time }
+        expiresAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    InstitutionDetails:
+      allOf:
+        - $ref: "#/components/schemas/InstitutionMembership"
+        - type: object
+          required: [institutionType, contactName, contactEmail, phone, updatedAt, subscription, capabilities]
+          properties:
+            institutionType: { type: ["string", "null"], enum: [government, semi_government, enterprise, other, null] }
+            contactName: { type: ["string", "null"] }
+            contactEmail: { type: ["string", "null"] }
+            phone: { type: ["string", "null"] }
+            updatedAt: { type: string, format: date-time }
+            subscription:
+              anyOf:
+                - $ref: "#/components/schemas/InstitutionSubscription"
+                - type: "null"
+            capabilities: { $ref: "#/components/schemas/PlanCapabilities" }
+    TeamMember:
+      type: object
+      required: [id, clerkUserId, fullName, emailAddress, role, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        clerkUserId: { type: string }
+        fullName: { type: ["string", "null"] }
+        emailAddress: { type: ["string", "null"], format: email }
+        role: { type: string, enum: [tenant_admin, reference_manager, analyst, reviewer, auditor] }
+        createdAt: { type: string, format: date-time }
+    InstitutionMemberInvitationInput:
+      type: object
+      additionalProperties: false
+      required: [emailAddress, role]
+      properties:
+        emailAddress: { type: string, format: email, maxLength: 254 }
+        role: { type: string, enum: [reference_manager, analyst, reviewer, auditor] }
+    InstitutionMemberInvitation:
+      type: object
+      additionalProperties: false
+      required: [id, emailAddress, role, status, deliveryStatus, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        emailAddress: { type: string, format: email }
+        role: { type: string, enum: [reference_manager, analyst, reviewer, auditor] }
+        status: { type: string, enum: [PENDING, ACCEPTED, REVOKED, EXPIRED] }
+        deliveryStatus: { type: string, enum: [PENDING, SENT, FAILED] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    AcceptInstitutionMemberInvitationInput:
+      type: object
+      additionalProperties: false
+      required: [token, fullName]
+      properties:
+        token: { type: string, minLength: 40, maxLength: 128 }
+        fullName: { type: string, minLength: 2, maxLength: 160 }
+    AcceptedInstitutionMemberInvitation:
+      type: object
+      additionalProperties: false
+      required: [institutionId, institutionName, role]
+      properties:
+        institutionId: { type: string, format: uuid }
+        institutionName: { type: string }
+        role: { type: string, enum: [reference_manager, analyst, reviewer, auditor] }
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    PublicStatus:
+      type: object
+      properties:
+        officialReferenceAdapter:
+          type: string
+          enum: [manual_entry_only]
+        circulatingContentAdapter:
+          type: string
+          enum: [manual_submission_only]
+        automatedMonitoringConfigured:
+          type: boolean
+        simulatedDataLoaded:
+          type: boolean
+        externalPublishingEnabled:
+          type: boolean
+      required:
+        - officialReferenceAdapter
+        - circulatingContentAdapter
+        - automatedMonitoringConfigured
+        - simulatedDataLoaded
+        - externalPublishingEnabled
+    Institution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+    InstitutionVerificationQueueItem:
+      type: object
+      additionalProperties: false
+      required: [id, name, submittedAt, legalVerificationStatus, reviewResult]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        submittedAt: { type: string, format: date-time }
+        legalVerificationStatus: { type: string, enum: [PENDING] }
+        reviewResult: { type: ["string", "null"], enum: [PENDING, VERIFIED, REJECTED, SUSPENDED, null] }
+    InstitutionVerificationDecision:
+      type: object
+      additionalProperties: false
+      required: [institutionId, status, reviewedAt]
+      properties:
+        institutionId: { type: string, format: uuid }
+        status: { type: string, enum: [VERIFIED] }
+        reviewedAt: { type: string, format: date-time }
+    InstitutionMembership:
+      allOf:
+        - $ref: "#/components/schemas/Institution"
+        - type: object
+          properties:
+            role:
+              type: string
+              enum: [tenant_admin, reference_manager, analyst, reviewer, auditor]
+          required: [role]
+    InstitutionInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+      required: [name]
+    InstitutionMemberInput:
+      type: object
+      properties:
+        clerkUserId:
+          type: string
+          minLength: 5
+          maxLength: 255
+        role:
+          type: string
+          enum: [reference_manager, analyst, reviewer, auditor]
+      required: [clerkUserId, role]
+    OfficialReference:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        issuingEntity:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        publishedAt:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [sari, muaddal, mulgha]
+        versionNumber:
+          type: integer
+        verificationStatus:
+          type: string
+          enum: [user_recorded_unverified]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - issuingEntity
+        - sourceUrl
+        - publishedAt
+        - status
+        - versionNumber
+        - verificationStatus
+        - createdAt
+    OfficialReferenceInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 2
+          maxLength: 240
+        issuingEntity:
+          type: string
+          minLength: 2
+          maxLength: 240
+        sourceUrl:
+          type: string
+          format: uri
+        publishedAt:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [sari, muaddal, mulgha]
+        contentText:
+          type: string
+          minLength: 1
+          maxLength: 100000
+      required: [title, issuingEntity, sourceUrl, publishedAt, status, contentText]
+    MonitorSource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+        adapterKind:
+          type: string
+          enum: [manual_submission]
+        monitoringEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, sourceUrl, adapterKind, monitoringEnabled, createdAt]
+    MonitorSourceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 180
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+      required: [name, sourceUrl]
+    ObservedContent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceId:
+          type: string
+          format: uuid
+        observedUrl:
+          type: ["string", "null"]
+          format: uri
+        contentText:
+          type: string
+        sourceObservedAt:
+          type: ["string", "null"]
+          format: date-time
+        firstCapturedAt:
+          type: string
+          format: date-time
+        captureMode:
+          type: string
+          enum: [manual_submission, rss_local_test]
+        isSimulated:
+          type: boolean
+      required:
+        - id
+        - sourceId
+        - observedUrl
+        - contentText
+        - sourceObservedAt
+        - firstCapturedAt
+        - captureMode
+        - isSimulated
+    ObservedContentInput:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          format: uuid
+        observedUrl:
+          type: ["string", "null"]
+          format: uri
+        contentText:
+          type: string
+          minLength: 1
+          maxLength: 100000
+        sourceObservedAt:
+          type: ["string", "null"]
+          format: date-time
+        isSimulated:
+          type: boolean
+          description: Mark sample or non-production content; the server persists this separately from capture mode.
+      required: [sourceId, observedUrl, contentText, sourceObservedAt, isSimulated]
+    Case:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        referenceId:
+          type: ["string", "null"]
+          format: uuid
+        observedContentId:
+          type: ["string", "null"]
+          format: uuid
+        status:
+          type: string
+          enum: [new, analysis, review, approved, referred]
+        initiationMode:
+          type: string
+          enum: [manual]
+        responseDraft:
+          anyOf:
+            - $ref: "#/components/schemas/ResponseDraft"
+            - type: "null"
+        reviewSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewStep"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, referenceId, observedContentId, status, initiationMode, responseDraft, reviewSteps, createdAt]
+    CaseDetails:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status:
+          type: string
+          enum: [new, analysis, review, approved, referred]
+        initiationMode:
+          type: string
+          enum: [manual]
+        createdAt: { type: string, format: date-time }
+        isSimulated: { type: boolean }
+        observedContent:
+          anyOf:
+            - $ref: "#/components/schemas/CaseObservedContent"
+            - type: "null"
+        observedClaim: { type: ["string", "null"] }
+        reference:
+          anyOf:
+            - $ref: "#/components/schemas/CaseReferenceDetails"
+            - type: "null"
+        analysis:
+          anyOf:
+            - $ref: "#/components/schemas/CaseAnalysisDetails"
+            - type: "null"
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaseEvidence"
+        responseDraft:
+          anyOf:
+            - $ref: "#/components/schemas/ResponseDraft"
+            - type: "null"
+        reviewSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewStep"
+      required: [id, title, status, initiationMode, createdAt, isSimulated, observedContent, observedClaim, reference, analysis, evidence, responseDraft, reviewSteps]
+    CaseObservedContent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        contentText: { type: string }
+        observedUrl: { type: ["string", "null"] }
+        sourceName: { type: ["string", "null"] }
+        sourceObservedAt: { type: ["string", "null"], format: date-time }
+        firstCapturedAt: { type: string, format: date-time }
+        isSimulated: { type: boolean }
+      required: [id, contentText, observedUrl, sourceName, sourceObservedAt, firstCapturedAt, isSimulated]
+    CaseReferenceDetails:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        issuingEntity: { type: string }
+        sourceUrl: { type: string }
+        verificationStatus: { type: string }
+        versionNumber: { type: ["integer", "null"] }
+        versionRelation:
+          type: ["string", "null"]
+          enum: [analyzed_version, latest_recorded, null]
+        versionContentText: { type: ["string", "null"] }
+      required: [id, title, issuingEntity, sourceUrl, verificationStatus, versionNumber, versionRelation, versionContentText]
+    CaseAnalysisDetails:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [queued, processing, pending_human_review, approved, revision_requested, rejected, escalated, failed]
+        summary: { type: ["string", "null"] }
+        reviewedRationale:
+          type: ["string", "null"]
+          deprecated: true
+          description: Retained for compatibility; use humanReview.reviewedResult.rationale.
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        humanReview:
+          anyOf:
+            - $ref: "#/components/schemas/CaseHumanReview"
+            - type: "null"
+        firstObservedDeviationAt: { type: ["string", "null"], format: date-time }
+        materialDeviation: { type: ["boolean", "null"] }
+        deviationTypes:
+          anyOf:
+            - type: array
+              items: { type: string }
+            - type: "null"
+        suggestedRoute:
+          type: ["string", "null"]
+          enum: [no_material_deviation, human_review, escalation_recommended, insufficient_evidence, null]
+        confidence:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 1
+        limitations:
+          anyOf:
+            - type: array
+              items: { type: string }
+            - type: "null"
+      required: [id, status, summary, reviewedRationale, reviewedAt, humanReview, firstObservedDeviationAt, materialDeviation, deviationTypes, suggestedRoute, confidence, limitations]
+    CaseHumanReview:
+      type: object
+      properties:
+        decision:
+          type: ["string", "null"]
+          enum: [approve, request_revision, reject, escalate, null]
+        status:
+          type: string
+          enum: [queued, processing, pending_human_review, approved, revision_requested, rejected, escalated, failed]
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        reviewedBy: { type: ["string", "null"] }
+        reviewedResult:
+          $ref: "#/components/schemas/HumanReviewAssessment"
+      required: [decision, status, reviewedAt, reviewedBy, reviewedResult]
+    HumanReviewAssessment:
+      type: object
+      properties:
+        materialDeviation: { type: boolean }
+        suggestedRoute:
+          type: string
+          enum: [no_material_deviation, human_review, escalation_recommended, insufficient_evidence]
+        rationale: { type: string, minLength: 1, maxLength: 4000 }
+      required: [materialDeviation, suggestedRoute, rationale]
+    CaseEvidence:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        source: { type: string }
+        sourceUrl: { type: ["string", "null"], format: uri }
+        note: { type: ["string", "null"] }
+        recordedAt: { type: string, format: date-time }
+      required: [id, title, source, sourceUrl, note, recordedAt]
+    CaseInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 2
+          maxLength: 240
+        referenceId:
+          type: ["string", "null"]
+          format: uuid
+        observedContentId:
+          type: ["string", "null"]
+          format: uuid
+      required: [title, referenceId, observedContentId]
+    ResponseDraft:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        draftText:
+          type: string
+        authorship:
+          type: string
+          enum: [human_authored]
+        status:
+          type: string
+          enum: [draft, in_review, approved, revision_requested, referred]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, caseId, draftText, authorship, status, createdAt]
+    ResponseDraftInput:
+      type: object
+      properties:
+        draftText:
+          type: string
+          minLength: 1
+          maxLength: 20000
+      required: [draftText]
+    ReviewStep:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        draftId:
+          type: string
+          format: uuid
+        sequenceNumber:
+          type: integer
+          minimum: 1
+        reviewerClerkUserId:
+          type: string
+        decision:
+          type: ["string", "null"]
+          enum: [approve, request_revision, escalate, null]
+        note:
+          type: ["string", "null"]
+        decidedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, caseId, draftId, sequenceNumber, reviewerClerkUserId, decision, note, decidedAt]
+    ReviewStepInput:
+      type: object
+      properties:
+        reviewerClerkUserId:
+          type: string
+          minLength: 5
+          maxLength: 255
+        sequenceNumber:
+          type: integer
+          minimum: 1
+      required: [reviewerClerkUserId, sequenceNumber]
+    ReviewDecisionInput:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [approve, request_revision, escalate]
+        note:
+          type: ["string", "null"]
+          maxLength: 4000
+      required: [decision, note]
+    IndividualReportInput:
+      type: object
+      additionalProperties: false
+      required: [contentUrl, reason]
+      properties:
+        contentUrl:
+          type: string
+          format: uri
+          pattern: "^https://"
+          minLength: 12
+          maxLength: 2048
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 2000
+    IndividualReport:
+      type: object
+      additionalProperties: false
+      required: [id, contentUrl, reason, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        contentUrl: { type: string, format: uri }
+        reason: { type: string }
+        status: { type: string, enum: [PENDING, IN_REVIEW, RESOLVED, DISMISSED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PlatformIndividualReport:
+      type: object
+      additionalProperties: false
+      required: [id, contentUrl, reason, status, createdAt, updatedAt, reviewNote, reviewedAt]
+      properties:
+        id: { type: string, format: uuid }
+        contentUrl: { type: string, format: uri }
+        reason: { type: string }
+        status: { type: string, enum: [PENDING, IN_REVIEW, RESOLVED, DISMISSED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        reviewNote: { type: ["string", "null"] }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+    IndividualReportReviewInput:
+      type: object
+      additionalProperties: false
+      required: [status, reviewNote]
+      properties:
+        status: { type: string, enum: [IN_REVIEW, RESOLVED, DISMISSED] }
+        reviewNote: { type: ["string", "null"], maxLength: 2000 }
+    IndividualProtectionProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        publicName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        aliases:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+        officialAccounts:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              platform:
+                type: string
+                minLength: 1
+                maxLength: 32
+              handle:
+                type: string
+                minLength: 1
+                maxLength: 80
+              url:
+                type: string
+                format: uri
+                pattern: "^https://"
+                maxLength: 512
+            required: [platform, handle, url]
+        keywords:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+      required: [publicName, aliases, officialAccounts, keywords]
+    IndividualProtectionProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        publicName:
+          type: string
+        aliases:
+          type: array
+          items: { type: string }
+        officialAccounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              platform: { type: string }
+              handle: { type: string }
+              url: { type: string, format: uri }
+            required: [platform, handle, url]
+        keywords:
+          type: array
+          items: { type: string }
+        verificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required:
+        [id, publicName, aliases, officialAccounts, keywords, verificationStatus, createdAt, updatedAt]
