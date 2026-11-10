@@ -1,0 +1,132 @@
+.marjea-footer {
+  background: #f4f7f6;
+  color: #002421;
+  padding: 64px 24px 24px;
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+}
+
+.marjea-footer[lang="en"] {
+  font-family: "Inter", sans-serif;
+}
+
+.marjea-footer__container {
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+.marjea-footer__main {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 64px;
+  padding-bottom: 64px;
+}
+
+.marjea-footer__brand {
+  max-width: 440px;
+}
+
+.marjea-footer__brand-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  margin-bottom: 24px;
+}
+
+.marjea-footer__logo {
+  width: min(190px, 48vw);
+  height: auto;
+}
+
+.marjea-footer__brand p {
+  margin: 0;
+  color: #536d68;
+  font-size: 15px;
+  line-height: 2;
+}
+
+.marjea-footer__navigation {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.marjea-footer__navigation h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.marjea-footer__navigation a {
+  color: inherit;
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.marjea-footer__navigation a:hover {
+  color: #008c7a;
+}
+
+.marjea-footer__navigation a:focus-visible {
+  outline: 2px solid #008c7a;
+  outline-offset: 5px;
+  border-radius: 3px;
+}
+
+.marjea-footer__bottom {
+  border-top: 1px solid #d5e2df;
+  padding-top: 24px;
+  color: #536d68;
+  font-size: 13px;
+}
+
+.dark .marjea-footer,
+[data-theme="dark"] .marjea-footer {
+  background: #002421;
+  color: #ffffff;
+}
+
+.dark .marjea-footer__logo,
+[data-theme="dark"] .marjea-footer__logo {
+  color: #ffffff;
+}
+
+.dark .marjea-footer__brand p,
+.dark .marjea-footer__bottom,
+[data-theme="dark"] .marjea-footer__brand p,
+[data-theme="dark"] .marjea-footer__bottom {
+  color: #bfd2cd;
+}
+
+.dark .marjea-footer__bottom,
+[data-theme="dark"] .marjea-footer__bottom {
+  border-color: #31534d;
+}
+
+.dark .marjea-footer__navigation a:hover,
+[data-theme="dark"] .marjea-footer__navigation a:hover {
+  color: #00e7c7;
+}
+
+@media (max-width: 700px) {
+  .marjea-footer {
+    padding: 48px 20px 24px;
+  }
+
+  .marjea-footer__main {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-bottom: 48px;
+  }
+
+  .marjea-footer__navigation {
+    gap: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marjea-footer__navigation a {
+    transition: none;
+  }
+}

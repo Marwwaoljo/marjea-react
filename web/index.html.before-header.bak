@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#002421">
+  <meta name="description" content="مَرْجِع — منصة سعودية لحوكمة المعلومات ومقارنة الادعاءات بالمراجع المعتمدة وتوثيق الاختلافات لدعم المراجعة البشرية.">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" as="image" href="/assets/media/home/riyadh-hero-approved.webp" fetchpriority="high">
+  <link rel="stylesheet" href="/marjea-public.css">
+  <link rel="stylesheet" href="/marjea-hero.css">
+  <link rel="stylesheet" href="/marjea-footer.css">
+  <link rel="stylesheet" href="/style.css">
+  <title>مَرْجِع | حوكمة المعلومات</title>
+</head>
+<body>
+  <div id="app" class="site marjea-public marjea-home">
+    <header class="public-site-header" id="site-header" dir="rtl">
+  <a class="public-brand" href="/" aria-label="مرجع - الصفحة الرئيسية">
+    <img src="/assets/marjea-logo-lockup-trimmed.png" alt="مَرْجِع" width="142" height="48">
+  </a>
+
+  <nav class="desktop-nav" aria-label="التنقل الرئيسي">
+    <a href="/#workflow">كيف يعمل</a>
+    <a href="/presentation">شجرة التطور</a>
+    <a href="/afaq">أفق</a>
+    <a href="/technical">الحوكمة والتوثيق</a>
+    <a href="/plans">الباقات</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="header-signin" href="/sign-in" data-i18n="signin">تسجيل الدخول</a>
+    <a class="header-cta" href="/account">ابدأ مع مرجع</a>
+    <button class="select-control" id="lang-toggle" type="button" aria-label="تغيير اللغة">EN</button>
+    <button class="select-control" id="theme-toggle" type="button" aria-label="تغيير المظهر">◐</button>
+  </div>
+
+  <button class="mobile-menu-button" id="mobile-menu-button"
+    type="button" aria-label="فتح القائمة" aria-controls="mobile-nav"
+    aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<button class="drawer-backdrop" id="drawer-backdrop"
+  type="button" aria-label="إغلاق القائمة" hidden></button>
+
+<nav class="mobile-nav" id="mobile-nav"
+  aria-label="القائمة الجانبية" aria-hidden="true" hidden>
+  <div class="drawer-heading">
+    <img src="/assets/marjea-logo-lockup-trimmed.png" alt="مَرْجِع">
+    <button id="drawer-close" type="button" aria-label="إغلاق القائمة">×</button>
+  </div>
+  <a href="/">الرئيسية</a>
+  <a href="/#workflow">كيف يعمل</a>
+  <a href="/presentation">شجرة التطور</a>
+  <a href="/afaq">أفق</a>
+  <a href="/technical">الحوكمة والتوثيق</a>
+  <a href="/plans">الباقات</a>
+  <a href="/sign-in">تسجيل الدخول</a>
+  <a class="drawer-cta" href="/account">ابدأ مع مرجع</a>
+</nav>
+    <main id="page-content" aria-live="polite"></main>
+    <footer class="marjea-footer public-site-footer" id="site-footer">
+      <div class="marjea-footer__container">
+        <div class="marjea-footer__main">
+          <div class="marjea-footer__brand"><a class="marjea-footer__brand-link" href="/"><img class="marjea-footer__logo" src="/assets/marjea-logo-lockup-trimmed.png" alt="مَرْجِع" width="142"></a><p data-i18n="footerDesc">منصة سعودية لحوكمة المعلومات ومقارنة الادعاءات بالمراجع المعتمدة وتوثيق الاختلافات لدعم المراجعة البشرية.</p></div>
+          <nav class="marjea-footer__navigation"><h2 data-i18n="siteLinks">روابط الموقع</h2><a href="/" data-i18n="home">الرئيسية</a><a href="/#faq" data-i18n="faq">الأسئلة الشائعة</a><a href="/technical" data-i18n="technical">التوثيق التقني</a><a href="mailto:hello@marjea.sa" data-i18n="contact">تواصل معنا</a></nav>
+        </div><div class="marjea-footer__bottom"><span>© <span id="year"></span> مَرْجِع</span><span data-i18n="manualOnly">الإدخال يدوي والمراجعة بشرية</span></div>
+      </div>
+    </footer>
+  </div>
+  <script type="module" src="/script.js"></script>
+</body>
+</html>
