@@ -1,0 +1,53 @@
+{
+  "name": "marjea-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "artifacts/api-server",
+    "lib/api-zod",
+    "lib/db",
+    "lib/integrations-openai-ai-server",
+    "artifacts/marjea",
+    "lib/api-client-react"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @workspace/api-server && npm run build:web",
+    "test": "npm run test --workspace @workspace/api-server",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "npm run typecheck:libs && npm run typecheck --workspace @workspace/api-server",
+    "test:unit": "npm run test --workspace @workspace/integrations-openai-ai-server && npm run test:unit --workspace @workspace/api-server",
+    "dev:web": "vite --config web/vite.config.js",
+    "build:web": "vite build --config web/vite.config.js",
+    "dev:api": "npm run dev --workspace @workspace/api-server",
+    "dev": "npm run dev:web",
+    "test:integration": "npm run test --workspace @workspace/api-server",
+    "test:live-ai": "npm run test:live-ai --workspace @workspace/api-server",
+    "check:database": "npm run check:database --workspace @workspace/db",
+    "check:readiness": "npm run check:readiness --workspace @workspace/db"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "react": "19.1.4",
+    "react-dom": "19.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.6"
+  },
+  "engines": {
+    "node": ">=22.16.0",
+    "npm": ">=10.9.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.8": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "protobufjs@7.6.6": true,
+    "@firebase/util@1.15.3": true
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2"
+  }
+}
